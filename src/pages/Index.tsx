@@ -9,6 +9,7 @@ import {
   Plus,
   Users,
   FileText,
+  Briefcase,
 } from "lucide-react";
 
 const DashboardCard = ({
