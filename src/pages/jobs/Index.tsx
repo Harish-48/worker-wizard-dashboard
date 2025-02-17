@@ -2,10 +2,32 @@
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Calendar, Clock, Users } from "lucide-react";
+import { Briefcase, Calendar, Clock, Users, UserCheck } from "lucide-react";
 import { useState, useEffect } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-const JobCard = ({ job }: { job: any }) => (
+interface Job {
+  id: string;
+  title: string;
+  description: string;
+  supervisorId: string;
+  supervisorName: string;
+  numWorkers: number;
+  startDate: string;
+  dueDate: string;
+  duration: string;
+  status: "Pending" | "In Progress" | "Completed";
+}
+
+const JobCard = ({ job, onStatusChange }: { job: Job; onStatusChange: (id: string, status: Job['status']) => void }) => (
   <Card className="p-6 flex flex-col gap-4 animate-enter">
     <div className="flex items-start justify-between">
       <div className="flex gap-4">
@@ -14,21 +36,39 @@ const JobCard = ({ job }: { job: any }) => (
         </div>
         <div>
           <h3 className="font-medium">{job.title}</h3>
-          <p className="text-sm text-muted-foreground">{job.client}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">{job.description}</p>
         </div>
       </div>
-      <Badge variant={job.status === "In Progress" ? "default" : "secondary"}>
-        {job.status}
-      </Badge>
+      <Select 
+        defaultValue={job.status}
+        onValueChange={(value: Job['status']) => onStatusChange(job.id, value)}
+      >
+        <SelectTrigger className="w-[140px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Pending">Pending</SelectItem>
+          <SelectItem value="In Progress">In Progress</SelectItem>
+          <SelectItem value="Completed">Completed</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
     <div className="flex flex-col gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <UserCheck className="w-4 h-4" />
+        <span>Supervisor: {job.supervisorName}</span>
+      </div>
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Calendar className="w-4 h-4" />
+        <span>Start: {job.startDate}</span>
+      </div>
       <div className="flex items-center gap-2 text-muted-foreground">
         <Calendar className="w-4 h-4" />
         <span>Due: {job.dueDate}</span>
       </div>
       <div className="flex items-center gap-2 text-muted-foreground">
         <Users className="w-4 h-4" />
-        <span>{job.workers} workers assigned</span>
+        <span>{job.numWorkers} workers assigned</span>
       </div>
       <div className="flex items-center gap-2 text-muted-foreground">
         <Clock className="w-4 h-4" />
@@ -39,7 +79,7 @@ const JobCard = ({ job }: { job: any }) => (
 );
 
 const JobsPage = () => {
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
     const savedJobs = localStorage.getItem("jobs");
@@ -47,6 +87,15 @@ const JobsPage = () => {
       setJobs(JSON.parse(savedJobs));
     }
   }, []);
+
+  const handleStatusChange = (jobId: string, newStatus: Job['status']) => {
+    const updatedJobs = jobs.map(job => 
+      job.id === jobId ? { ...job, status: newStatus } : job
+    );
+    setJobs(updatedJobs);
+    localStorage.setItem("jobs", JSON.stringify(updatedJobs));
+    toast.success("Job status updated successfully");
+  };
 
   return (
     <Layout>
@@ -59,7 +108,11 @@ const JobsPage = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <JobCard 
+              key={job.id} 
+              job={job} 
+              onStatusChange={handleStatusChange}
+            />
           ))}
         </div>
       </div>

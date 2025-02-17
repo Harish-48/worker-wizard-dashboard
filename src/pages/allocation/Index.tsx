@@ -37,6 +37,8 @@ interface Allocation {
   supervisorName: string;
   jobIds: string[];
   jobTitles: string[];
+  numWorkers: number;
+  jobDescription: string;
   startDate: string;
   endDate: string;
   status: string;
@@ -90,6 +92,8 @@ const AllocationPage = () => {
       supervisorName: supervisor?.name || "",
       jobIds: selectedJobs,
       jobTitles: selectedJobDetails.map(j => j.title),
+      numWorkers: selectedJobDetails.length,
+      jobDescription: selectedJobDetails.map(j => j.description).join(", "),
       startDate: newAllocation.startDate,
       endDate: newAllocation.endDate,
       status: "Active",
@@ -98,6 +102,12 @@ const AllocationPage = () => {
     const updatedAllocations = [...allocations, allocation];
     setAllocations(updatedAllocations);
     localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
+    
+    // Update worker status in localStorage
+    const updatedWorkers = workers.map(w => 
+      w.id === worker?.id ? { ...w, status: "Work Allocated" } : w
+    );
+    localStorage.setItem("workers", JSON.stringify(updatedWorkers));
     
     setNewAllocation({
       workerId: "",

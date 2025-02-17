@@ -1,4 +1,3 @@
-
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,19 +18,17 @@ interface Worker {
   id: string;
   name: string;
   role: string;
-  rating: number;
   email: string;
   phone: string;
+  status: "Work Allocated" | "Not Allocated";
 }
 
 const WorkerCard = ({ 
   worker, 
   onRemove,
-  isAssigned 
 }: { 
   worker: Worker;
   onRemove: (id: string) => void;
-  isAssigned: boolean;
 }) => (
   <Card className="p-6 flex flex-col gap-4 animate-enter relative">
     <Button 
@@ -53,8 +50,8 @@ const WorkerCard = ({
         </div>
       </div>
       <div className="flex items-center gap-1 mt-8">
-        <Badge variant={isAssigned ? "default" : "secondary"}>
-          {isAssigned ? "Work Assigned" : "Not Assigned"}
+        <Badge variant={worker.status === "Work Allocated" ? "default" : "secondary"}>
+          {worker.status}
         </Badge>
       </div>
     </div>
@@ -81,17 +78,6 @@ const WorkersPage = () => {
     phone: "",
   });
 
-  // Get allocated workers from localStorage or empty array
-  const getAllocations = () => {
-    const allocations = localStorage.getItem("allocations");
-    return allocations ? JSON.parse(allocations) : [];
-  };
-
-  const isWorkerAssigned = (workerId: string) => {
-    const allocations = getAllocations();
-    return allocations.some((allocation: any) => allocation.workerId === workerId);
-  };
-
   const handleAddWorker = () => {
     if (!newWorker.name || !newWorker.role || !newWorker.email || !newWorker.phone) {
       toast.error("Please fill in all fields");
@@ -101,13 +87,11 @@ const WorkersPage = () => {
     const worker: Worker = {
       id: Date.now().toString(),
       ...newWorker,
-      rating: 5.0,
+      status: "Not Allocated",
     };
 
     setWorkers([...workers, worker]);
-    // Save to localStorage
-    const updatedWorkers = [...workers, worker];
-    localStorage.setItem("workers", JSON.stringify(updatedWorkers));
+    localStorage.setItem("workers", JSON.stringify([...workers, worker]));
     
     setNewWorker({ name: "", role: "", email: "", phone: "" });
     setIsAddingWorker(false);
@@ -121,7 +105,6 @@ const WorkersPage = () => {
     toast.success("Worker removed successfully");
   };
 
-  // Load workers from localStorage on component mount
   useState(() => {
     const savedWorkers = localStorage.getItem("workers");
     if (savedWorkers) {
@@ -148,7 +131,6 @@ const WorkersPage = () => {
               key={worker.id} 
               worker={worker} 
               onRemove={handleRemoveWorker}
-              isAssigned={isWorkerAssigned(worker.id)}
             />
           ))}
         </div>
