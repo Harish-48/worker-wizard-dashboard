@@ -6,6 +6,7 @@ import {
   Calendar,
   BarChart,
 } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -46,6 +47,8 @@ const items = [
 ];
 
 const AppSidebar = () => {
+  const location = useLocation();
+
   return (
     <Sidebar>
       <SidebarContent>
@@ -56,10 +59,14 @@ const AppSidebar = () => {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url} className="flex items-center gap-3">
+                    <Link
+                      to={item.url}
+                      className="flex items-center gap-3"
+                      data-active={location.pathname === item.url}
+                    >
                       <item.icon className="h-5 w-5" />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
