@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useState, useEffect } from "react";
 
 const ReportCard = ({
   title,
@@ -39,14 +40,32 @@ const ReportCard = ({
 );
 
 const ReportsPage = () => {
-  const data = [
-    { name: "Jan", completed: 4 },
-    { name: "Feb", completed: 6 },
-    { name: "Mar", completed: 8 },
-    { name: "Apr", completed: 5 },
-    { name: "May", completed: 7 },
-    { name: "Jun", completed: 9 },
-  ];
+  const [metrics, setMetrics] = useState({
+    totalJobs: 0,
+    activeWorkers: 0,
+    avgCompletion: "0",
+    completedThisMonth: 0
+  });
+  const [completionData, setCompletionData] = useState([]);
+
+  useEffect(() => {
+    // Load data from localStorage
+    const jobs = JSON.parse(localStorage.getItem("jobs") || "[]");
+    const workers = JSON.parse(localStorage.getItem("workers") || "[]");
+    const allocations = JSON.parse(localStorage.getItem("allocations") || "[]");
+
+    // Calculate metrics
+    setMetrics({
+      totalJobs: jobs.length,
+      activeWorkers: workers.length,
+      avgCompletion: "18 days", // This would need real calculation
+      completedThisMonth: allocations.length
+    });
+
+    // Calculate completion data
+    // This would need real data processing
+    setCompletionData([]);
+  }, []);
 
   return (
     <Layout>
@@ -62,26 +81,26 @@ const ReportsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ReportCard
             title="Total Jobs"
-            value="156"
-            subtitle="12 this month"
+            value={metrics.totalJobs.toString()}
+            subtitle="All projects"
             icon={FileText}
           />
           <ReportCard
             title="Active Workers"
-            value="32"
-            subtitle="8 on leave"
+            value={metrics.activeWorkers.toString()}
+            subtitle="Currently employed"
             icon={Users}
           />
           <ReportCard
             title="Avg. Completion"
-            value="18 days"
-            subtitle="2 days faster than target"
+            value={metrics.avgCompletion}
+            subtitle="Per project"
             icon={Timer}
           />
           <ReportCard
             title="This Month"
-            value="24"
-            subtitle="Jobs completed"
+            value={metrics.completedThisMonth.toString()}
+            subtitle="Allocations made"
             icon={Calendar}
           />
         </div>
@@ -90,7 +109,7 @@ const ReportsPage = () => {
           <h2 className="text-lg font-medium mb-6">Jobs Completed</h2>
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <BarChart data={completionData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />

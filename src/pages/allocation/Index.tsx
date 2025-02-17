@@ -33,8 +33,10 @@ interface Allocation {
   id: string;
   workerId: string;
   workerName: string;
-  jobId: string;
-  jobTitle: string;
+  supervisorId: string;
+  supervisorName: string;
+  jobIds: string[];
+  jobTitles: string[];
   startDate: string;
   endDate: string;
   status: string;
@@ -45,9 +47,11 @@ const AllocationPage = () => {
   const [isAddingAllocation, setIsAddingAllocation] = useState(false);
   const [workers, setWorkers] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [supervisors, setSupervisors] = useState<any[]>([]);
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [newAllocation, setNewAllocation] = useState({
     workerId: "",
-    jobId: "",
+    supervisorId: "",
     startDate: "",
     endDate: "",
   });
@@ -59,25 +63,33 @@ const AllocationPage = () => {
     const savedJobs = localStorage.getItem("jobs");
 
     if (savedAllocations) setAllocations(JSON.parse(savedAllocations));
-    if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
+    if (savedWorkers) {
+      const workers = JSON.parse(savedWorkers);
+      setWorkers(workers);
+      // Filter supervisors from workers
+      setSupervisors(workers.filter((w: any) => w.role.toLowerCase().includes('supervisor')));
+    }
     if (savedJobs) setJobs(JSON.parse(savedJobs));
   }, []);
 
   const handleAddAllocation = () => {
-    if (!newAllocation.workerId || !newAllocation.jobId || !newAllocation.startDate || !newAllocation.endDate) {
+    if (!newAllocation.workerId || !newAllocation.supervisorId || !selectedJobs.length || !newAllocation.startDate || !newAllocation.endDate) {
       toast.error("Please fill in all fields");
       return;
     }
 
     const worker = workers.find(w => w.id === newAllocation.workerId);
-    const job = jobs.find(j => j.id === newAllocation.jobId);
+    const supervisor = workers.find(w => w.id === newAllocation.supervisorId);
+    const selectedJobDetails = jobs.filter(j => selectedJobs.includes(j.id));
 
     const allocation: Allocation = {
       id: Date.now().toString(),
       workerId: newAllocation.workerId,
       workerName: worker?.name || "",
-      jobId: newAllocation.jobId,
-      jobTitle: job?.title || "",
+      supervisorId: newAllocation.supervisorId,
+      supervisorName: supervisor?.name || "",
+      jobIds: selectedJobs,
+      jobTitles: selectedJobDetails.map(j => j.title),
       startDate: newAllocation.startDate,
       endDate: newAllocation.endDate,
       status: "Active",
@@ -89,10 +101,11 @@ const AllocationPage = () => {
     
     setNewAllocation({
       workerId: "",
-      jobId: "",
+      supervisorId: "",
       startDate: "",
       endDate: "",
     });
+    setSelectedJobs([]);
     setIsAddingAllocation(false);
     toast.success("Allocation added successfully");
   };
@@ -102,6 +115,14 @@ const AllocationPage = () => {
     setAllocations(updatedAllocations);
     localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
     toast.success("Allocation removed successfully");
+  };
+
+  const toggleJobSelection = (jobId: string) => {
+    setSelectedJobs(prev => 
+      prev.includes(jobId) 
+        ? prev.filter(id => id !== jobId)
+        : [...prev, jobId]
+    );
   };
 
   return (
@@ -122,7 +143,8 @@ const AllocationPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Worker</TableHead>
-                <TableHead>Job</TableHead>
+                <TableHead>Supervisor</TableHead>
+                <TableHead>Jobs</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>End Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -135,7 +157,8 @@ const AllocationPage = () => {
                   <TableCell className="font-medium">
                     {allocation.workerName}
                   </TableCell>
-                  <TableCell>{allocation.jobTitle}</TableCell>
+                  <TableCell>{allocation.supervisorName}</TableCell>
+                  <TableCell>{allocation.jobTitles.join(", ")}</TableCell>
                   <TableCell>{allocation.startDate}</TableCell>
                   <TableCell>{allocation.endDate}</TableCell>
                   <TableCell>
@@ -166,6 +189,23 @@ const AllocationPage = () => {
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
                 <Select
+                  value={newAllocation.supervisorId}
+                  onValueChange={(value) => setNewAllocation({ ...newAllocation, supervisorId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Supervisor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supervisors.map((supervisor) => (
+                      <SelectItem key={supervisor.id} value={supervisor.id}>
+                        {supervisor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Select
                   value={newAllocation.workerId}
                   onValueChange={(value) => setNewAllocation({ ...newAllocation, workerId: value })}
                 >
@@ -174,29 +214,33 @@ const AllocationPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {workers.map((worker) => (
-                      <SelectItem key={worker.id} value={worker.id}>
-                        {worker.name}
-                      </SelectItem>
+                      worker.id !== newAllocation.supervisorId && (
+                        <SelectItem key={worker.id} value={worker.id}>
+                          {worker.name}
+                        </SelectItem>
+                      )
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Select
-                  value={newAllocation.jobId}
-                  onValueChange={(value) => setNewAllocation({ ...newAllocation, jobId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Job" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {jobs.map((job) => (
-                      <SelectItem key={job.id} value={job.id}>
+                <h4 className="text-sm font-medium mb-2">Select Jobs</h4>
+                <div className="grid gap-2 p-2 border rounded-md max-h-32 overflow-y-auto">
+                  {jobs.map((job) => (
+                    <div key={job.id} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={job.id}
+                        checked={selectedJobs.includes(job.id)}
+                        onChange={() => toggleJobSelection(job.id)}
+                        className="mr-2"
+                      />
+                      <label htmlFor={job.id} className="text-sm">
                         {job.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="space-y-2">
                 <input

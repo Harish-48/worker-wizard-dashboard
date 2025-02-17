@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, Calendar, Clock, Users } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const JobCard = ({ job }: { job: any }) => (
   <Card className="p-6 flex flex-col gap-4 animate-enter">
@@ -38,32 +39,14 @@ const JobCard = ({ job }: { job: any }) => (
 );
 
 const JobsPage = () => {
-  const jobs = [
-    {
-      title: "Steel Gate Installation",
-      client: "Acme Corp",
-      status: "In Progress",
-      dueDate: "March 15, 2024",
-      workers: 4,
-      duration: "2 weeks",
-    },
-    {
-      title: "Factory Maintenance",
-      client: "Tech Industries",
-      status: "Pending",
-      dueDate: "March 20, 2024",
-      workers: 6,
-      duration: "1 month",
-    },
-    {
-      title: "Security Fence",
-      client: "Safe & Sound Ltd",
-      status: "In Progress",
-      dueDate: "April 1, 2024",
-      workers: 3,
-      duration: "3 weeks",
-    },
-  ];
+  const [jobs, setJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const savedJobs = localStorage.getItem("jobs");
+    if (savedJobs) {
+      setJobs(JSON.parse(savedJobs));
+    }
+  }, []);
 
   return (
     <Layout>
@@ -76,7 +59,7 @@ const JobsPage = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {jobs.map((job) => (
-            <JobCard key={job.title} job={job} />
+            <JobCard key={job.id} job={job} />
           ))}
         </div>
       </div>
