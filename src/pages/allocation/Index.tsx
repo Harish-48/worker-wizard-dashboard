@@ -27,33 +27,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface Allocation {
   id: string;
-  workerId: string;
-  workerName: string;
+  workerIds: string[];
+  workerNames: string[];
   supervisorId: string;
   supervisorName: string;
-  jobIds: string[];
-  jobTitles: string[];
-  numWorkers: number;
-  jobDescription: string;
+  companyName: string;
   startDate: string;
   endDate: string;
-  status: string;
+  status: "Active" | "Completed";
 }
 
 const AllocationPage = () => {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [isAddingAllocation, setIsAddingAllocation] = useState(false);
   const [workers, setWorkers] = useState<any[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [supervisors, setSupervisors] = useState<any[]>([]);
-  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [newAllocation, setNewAllocation] = useState({
-    workerId: "",
     supervisorId: "",
+    companyName: "",
     startDate: "",
     endDate: "",
   });
@@ -62,38 +58,49 @@ const AllocationPage = () => {
     // Load saved data from localStorage
     const savedAllocations = localStorage.getItem("allocations");
     const savedWorkers = localStorage.getItem("workers");
-    const savedJobs = localStorage.getItem("jobs");
 
     if (savedAllocations) setAllocations(JSON.parse(savedAllocations));
-    if (savedWorkers) {
-      const workers = JSON.parse(savedWorkers);
-      setWorkers(workers);
-      // Filter supervisors from workers
-      setSupervisors(workers.filter((w: any) => w.role.toLowerCase().includes('supervisor')));
-    }
-    if (savedJobs) setJobs(JSON.parse(savedJobs));
+    if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
   }, []);
 
+  const getAvailableSupervisors = () => {
+    return workers.filter(worker => 
+      worker.role.toLowerCase().includes('supervisor') &&
+      !allocations.some(a => a.supervisorId === worker.id && a.status === "Active")
+    );
+  };
+
+  const getAvailableWorkers = () => {
+    return workers.filter(worker => 
+      !worker.role.toLowerCase().includes('supervisor') &&
+      !allocations.some(a => a.workerIds.includes(worker.id) && a.status === "Active")
+    );
+  };
+
+  const toggleWorkerSelection = (workerId: string) => {
+    setSelectedWorkers(prev => 
+      prev.includes(workerId)
+        ? prev.filter(id => id !== workerId)
+        : [...prev, workerId]
+    );
+  };
+
   const handleAddAllocation = () => {
-    if (!newAllocation.workerId || !newAllocation.supervisorId || !selectedJobs.length || !newAllocation.startDate || !newAllocation.endDate) {
+    if (!newAllocation.supervisorId || !selectedWorkers.length || !newAllocation.companyName || !newAllocation.startDate || !newAllocation.endDate) {
       toast.error("Please fill in all fields");
       return;
     }
 
-    const worker = workers.find(w => w.id === newAllocation.workerId);
     const supervisor = workers.find(w => w.id === newAllocation.supervisorId);
-    const selectedJobDetails = jobs.filter(j => selectedJobs.includes(j.id));
+    const selectedWorkerDetails = workers.filter(w => selectedWorkers.includes(w.id));
 
     const allocation: Allocation = {
       id: Date.now().toString(),
-      workerId: newAllocation.workerId,
-      workerName: worker?.name || "",
+      workerIds: selectedWorkers,
+      workerNames: selectedWorkerDetails.map(w => w.name),
       supervisorId: newAllocation.supervisorId,
       supervisorName: supervisor?.name || "",
-      jobIds: selectedJobs,
-      jobTitles: selectedJobDetails.map(j => j.title),
-      numWorkers: selectedJobDetails.length,
-      jobDescription: selectedJobDetails.map(j => j.description).join(", "),
+      companyName: newAllocation.companyName,
       startDate: newAllocation.startDate,
       endDate: newAllocation.endDate,
       status: "Active",
@@ -103,36 +110,58 @@ const AllocationPage = () => {
     setAllocations(updatedAllocations);
     localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
     
-    // Update worker status in localStorage
-    const updatedWorkers = workers.map(w => 
-      w.id === worker?.id ? { ...w, status: "Work Allocated" } : w
-    );
+    // Update workers' status
+    const updatedWorkers = workers.map(w => ({
+      ...w,
+      status: selectedWorkers.includes(w.id) || w.id === newAllocation.supervisorId 
+        ? "Work Allocated" 
+        : "Not Allocated"
+    }));
     localStorage.setItem("workers", JSON.stringify(updatedWorkers));
     
+    // Create job entry
+    const jobs = JSON.parse(localStorage.getItem("jobs") || "[]");
+    const newJob = {
+      id: Date.now().toString(),
+      title: newAllocation.companyName,
+      supervisorId: newAllocation.supervisorId,
+      supervisorName: supervisor?.name,
+      numWorkers: selectedWorkers.length,
+      startDate: newAllocation.startDate,
+      dueDate: newAllocation.endDate,
+      status: "Pending",
+    };
+    localStorage.setItem("jobs", JSON.stringify([...jobs, newJob]));
+    
     setNewAllocation({
-      workerId: "",
       supervisorId: "",
+      companyName: "",
       startDate: "",
       endDate: "",
     });
-    setSelectedJobs([]);
+    setSelectedWorkers([]);
     setIsAddingAllocation(false);
     toast.success("Allocation added successfully");
   };
 
   const handleRemoveAllocation = (id: string) => {
-    const updatedAllocations = allocations.filter(allocation => allocation.id !== id);
+    const allocation = allocations.find(a => a.id === id);
+    if (!allocation) return;
+
+    const updatedAllocations = allocations.filter(a => a.id !== id);
     setAllocations(updatedAllocations);
     localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
-    toast.success("Allocation removed successfully");
-  };
 
-  const toggleJobSelection = (jobId: string) => {
-    setSelectedJobs(prev => 
-      prev.includes(jobId) 
-        ? prev.filter(id => id !== jobId)
-        : [...prev, jobId]
-    );
+    // Update workers' status
+    const updatedWorkers = workers.map(w => ({
+      ...w,
+      status: allocation.workerIds.includes(w.id) || w.id === allocation.supervisorId
+        ? "Not Allocated"
+        : w.status
+    }));
+    localStorage.setItem("workers", JSON.stringify(updatedWorkers));
+
+    toast.success("Allocation removed successfully");
   };
 
   return (
@@ -152,9 +181,9 @@ const AllocationPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Worker</TableHead>
                 <TableHead>Supervisor</TableHead>
-                <TableHead>Jobs</TableHead>
+                <TableHead>Workers</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>End Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -165,10 +194,10 @@ const AllocationPage = () => {
               {allocations.map((allocation) => (
                 <TableRow key={allocation.id}>
                   <TableCell className="font-medium">
-                    {allocation.workerName}
+                    {allocation.supervisorName}
                   </TableCell>
-                  <TableCell>{allocation.supervisorName}</TableCell>
-                  <TableCell>{allocation.jobTitles.join(", ")}</TableCell>
+                  <TableCell>{allocation.workerNames.join(", ")}</TableCell>
+                  <TableCell>{allocation.companyName}</TableCell>
                   <TableCell>{allocation.startDate}</TableCell>
                   <TableCell>{allocation.endDate}</TableCell>
                   <TableCell>
@@ -198,6 +227,7 @@ const AllocationPage = () => {
             </SheetHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
+                <label className="text-sm font-medium">Supervisor</label>
                 <Select
                   value={newAllocation.supervisorId}
                   onValueChange={(value) => setNewAllocation({ ...newAllocation, supervisorId: value })}
@@ -206,7 +236,7 @@ const AllocationPage = () => {
                     <SelectValue placeholder="Select Supervisor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {supervisors.map((supervisor) => (
+                    {getAvailableSupervisors().map((supervisor) => (
                       <SelectItem key={supervisor.id} value={supervisor.id}>
                         {supervisor.name}
                       </SelectItem>
@@ -214,45 +244,38 @@ const AllocationPage = () => {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
-                <Select
-                  value={newAllocation.workerId}
-                  onValueChange={(value) => setNewAllocation({ ...newAllocation, workerId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Worker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workers.map((worker) => (
-                      worker.id !== newAllocation.supervisorId && (
-                        <SelectItem key={worker.id} value={worker.id}>
-                          {worker.name}
-                        </SelectItem>
-                      )
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium mb-2">Select Jobs</h4>
-                <div className="grid gap-2 p-2 border rounded-md max-h-32 overflow-y-auto">
-                  {jobs.map((job) => (
-                    <div key={job.id} className="flex items-center">
+                <label className="text-sm font-medium">Select Workers</label>
+                <div className="border rounded-md p-4 space-y-2 max-h-40 overflow-y-auto">
+                  {getAvailableWorkers().map((worker) => (
+                    <div key={worker.id} className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        id={job.id}
-                        checked={selectedJobs.includes(job.id)}
-                        onChange={() => toggleJobSelection(job.id)}
-                        className="mr-2"
+                        id={worker.id}
+                        checked={selectedWorkers.includes(worker.id)}
+                        onChange={() => toggleWorkerSelection(worker.id)}
+                        className="h-4 w-4 rounded border-gray-300"
                       />
-                      <label htmlFor={job.id} className="text-sm">
-                        {job.title}
+                      <label htmlFor={worker.id} className="text-sm">
+                        {worker.name}
                       </label>
                     </div>
                   ))}
                 </div>
               </div>
+
               <div className="space-y-2">
+                <label className="text-sm font-medium">Company Name</label>
+                <Input
+                  placeholder="Enter company name"
+                  value={newAllocation.companyName}
+                  onChange={(e) => setNewAllocation({ ...newAllocation, companyName: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Start Date</label>
                 <input
                   type="date"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
@@ -260,7 +283,9 @@ const AllocationPage = () => {
                   onChange={(e) => setNewAllocation({ ...newAllocation, startDate: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2">
+                <label className="text-sm font-medium">End Date</label>
                 <input
                   type="date"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
