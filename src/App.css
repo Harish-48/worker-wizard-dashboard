@@ -1,3 +1,4 @@
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -12,10 +13,10 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em rgba(139, 92, 246, 0.67));
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2em rgba(97, 218, 251, 0.67));
 }
 
 @keyframes logo-spin {
@@ -35,8 +36,32 @@
 
 .card {
   padding: 2em;
+  background: linear-gradient(to bottom right, #ffffff, #f3f4f6);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.15);
 }
 
 .read-the-docs {
   color: #888;
 }
+
+/* Additional gradients and effects */
+.gradient-border {
+  border: 1px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(to right, rgba(139, 92, 246, 0.5), rgba(168, 85, 247, 0.5)) border-box;
+  border-radius: 0.75rem;
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+

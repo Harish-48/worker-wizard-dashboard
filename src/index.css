@@ -5,25 +5,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
+    --background: 270 50% 98%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --ring: 262 83% 58%;
     --radius: 0.75rem;
   }
 }
@@ -39,7 +39,7 @@
 }
 
 .glass-card {
-  @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-lg;
+  @apply bg-white/90 backdrop-blur-lg border border-white/20 shadow-lg;
 }
 
 .animate-enter {
@@ -54,13 +54,65 @@
 }
 
 .metric-card {
-  @apply glass-card rounded-lg p-6 transition-all duration-300 hover:shadow-xl;
+  @apply glass-card rounded-lg p-6 transition-all duration-300 hover:shadow-xl 
+         bg-gradient-to-br from-white to-secondary/30;
 }
 
 .nav-link {
-  @apply px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary;
+  @apply px-4 py-2 text-sm font-medium text-muted-foreground transition-colors 
+         hover:text-primary hover:bg-primary/5 rounded-md;
 }
 
 .nav-link.active {
-  @apply text-primary;
+  @apply text-primary bg-primary/10;
 }
+
+/* Card gradients for different statuses */
+.status-card-pending {
+  @apply bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-100;
+}
+
+.status-card-progress {
+  @apply bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100;
+}
+
+.status-card-completed {
+  @apply bg-gradient-to-br from-green-50 to-emerald-50 border-green-100;
+}
+
+/* Worker status badges */
+.status-badge-allocated {
+  @apply bg-purple-100 text-purple-700 border-purple-200;
+}
+
+.status-badge-not-allocated {
+  @apply bg-gray-100 text-gray-700 border-gray-200;
+}
+
+/* Hover effects for cards */
+.hover-card {
+  @apply transition-all duration-300 hover:shadow-lg hover:scale-[1.02] 
+         hover:bg-gradient-to-br hover:from-white hover:to-primary/5;
+}
+
+/* Table styles */
+.table-row-hover {
+  @apply hover:bg-primary/5 transition-colors duration-200;
+}
+
+/* Button gradients */
+.button-gradient {
+  @apply bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 
+         text-white transition-all duration-300;
+}
+
+/* Sidebar styling */
+.sidebar-gradient {
+  @apply bg-gradient-to-b from-background to-white border-r border-gray-200;
+}
+
+/* Header/navbar styling */
+.navbar-gradient {
+  @apply bg-white/80 backdrop-blur-md border-b border-gray-200;
+}
+
