@@ -24,7 +24,7 @@ interface Job {
   status: "Pending" | "In Progress" | "Completed";
 }
 
-const JobCard = ({ job, onStatusChange }: { job: Job; onStatusChange: (id: string, status: Job['status']) => void }) => {
+const JobCard = ({ job, onStatusChange }: { job: Job; onStatusChange: (id: string, status: Job['status'], title: string) => void }) => {
   const calculateRemainingDays = () => {
     const today = new Date();
     const dueDate = new Date(job.dueDate);
@@ -47,7 +47,7 @@ const JobCard = ({ job, onStatusChange }: { job: Job; onStatusChange: (id: strin
         </div>
         <Select 
           defaultValue={job.status}
-          onValueChange={(value: Job['status']) => onStatusChange(job.id, value)}
+          onValueChange={(value: Job['status']) => onStatusChange(job.id, value, job.title)}
         >
           <SelectTrigger className="w-[140px]">
             <SelectValue />
@@ -91,33 +91,37 @@ const JobsPage = () => {
     }
   }, []);
 
-  const handleStatusChange = (jobId: string, newStatus: Job['status']) => {
+  const handleStatusChange = (jobId: string, newStatus: Job['status'], jobTitle: string) => {
     const updatedJobs = jobs.map(job => 
       job.id === jobId ? { ...job, status: newStatus } : job
     );
     setJobs(updatedJobs);
     localStorage.setItem("jobs", JSON.stringify(updatedJobs));
 
-    // Update allocation status if job is completed
+    // Update allocation and worker status if job is completed
     if (newStatus === "Completed") {
+      // Update allocations
       const allocations = JSON.parse(localStorage.getItem("allocations") || "[]");
       const updatedAllocations = allocations.map((allocation: any) => 
-        allocation.companyName === job.title ? { ...allocation, status: "Completed" } : allocation
+        allocation.companyName === jobTitle ? { ...allocation, status: "Completed" } : allocation
       );
       localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
 
-      // Update workers' status
-      const workers = JSON.parse(localStorage.getItem("workers") || "[]");
-      const updatedWorkers = workers.map((worker: any) => {
-        const workerAllocation = updatedAllocations.find((a: any) => 
-          a.workerIds.includes(worker.id) || a.supervisorId === worker.id
-        );
-        return {
-          ...worker,
-          status: workerAllocation && workerAllocation.status === "Active" ? "Work Allocated" : "Not Allocated"
-        };
-      });
-      localStorage.setItem("workers", JSON.stringify(updatedWorkers));
+      // Find the completed allocation
+      const completedAllocation = allocations.find((a: any) => a.companyName === jobTitle);
+      
+      if (completedAllocation) {
+        // Update workers' status
+        const workers = JSON.parse(localStorage.getItem("workers") || "[]");
+        const updatedWorkers = workers.map((worker: any) => {
+          if (completedAllocation.workerIds.includes(worker.id) || 
+              worker.id === completedAllocation.supervisorId) {
+            return { ...worker, status: "Not Allocated" };
+          }
+          return worker;
+        });
+        localStorage.setItem("workers", JSON.stringify(updatedWorkers));
+      }
     }
 
     toast.success("Job status updated successfully");
