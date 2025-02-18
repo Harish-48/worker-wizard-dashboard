@@ -5,25 +5,25 @@
 
 @layer base {
   :root {
-    --background: 270 50% 98%;
-    --foreground: 240 10% 3.9%;
+    --background: 24 33% 97%;
+    --foreground: 20 14.3% 4.1%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 20 14.3% 4.1%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 262 83% 58%;
-    --accent-foreground: 0 0% 98%;
+    --popover-foreground: 20 14.3% 4.1%;
+    --primary: 24 90% 60%;
+    --primary-foreground: 60 9.1% 97.8%;
+    --secondary: 12 6.5% 15.1%;
+    --secondary-foreground: 60 9.1% 97.8%;
+    --muted: 12 6.5% 95.1%;
+    --muted-foreground: 24 5.4% 63.9%;
+    --accent: 12 6.5% 95.1%;
+    --accent-foreground: 24 9.8% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 262 83% 58%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 20 5.9% 90%;
+    --input: 20 5.9% 90%;
+    --ring: 24 90% 60%;
     --radius: 0.75rem;
   }
 }
@@ -55,7 +55,7 @@
 
 .metric-card {
   @apply glass-card rounded-lg p-6 transition-all duration-300 hover:shadow-xl 
-         bg-gradient-to-br from-white to-secondary/30;
+         bg-gradient-to-br from-white to-[#FDE1D3];
 }
 
 .nav-link {
@@ -69,46 +69,46 @@
 
 /* Card gradients for different statuses */
 .status-card-pending {
-  @apply bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-100;
+  @apply bg-gradient-to-br from-orange-50 to-rose-50 border-orange-100;
 }
 
 .status-card-progress {
-  @apply bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100;
+  @apply bg-gradient-to-br from-rose-50 to-pink-50 border-rose-100;
 }
 
 .status-card-completed {
-  @apply bg-gradient-to-br from-green-50 to-emerald-50 border-green-100;
+  @apply bg-gradient-to-br from-slate-50 to-gray-50 border-slate-100;
 }
 
 /* Worker status badges */
 .status-badge-allocated {
-  @apply bg-purple-100 text-purple-700 border-purple-200;
+  @apply bg-orange-100 text-orange-700 border-orange-200;
 }
 
 .status-badge-not-allocated {
-  @apply bg-gray-100 text-gray-700 border-gray-200;
+  @apply bg-slate-100 text-slate-700 border-slate-200;
 }
 
 /* Hover effects for cards */
 .hover-card {
   @apply transition-all duration-300 hover:shadow-lg hover:scale-[1.02] 
-         hover:bg-gradient-to-br hover:from-white hover:to-primary/5;
+         hover:bg-gradient-to-br hover:from-white hover:to-[#FEC6A1];
 }
 
 /* Table styles */
 .table-row-hover {
-  @apply hover:bg-primary/5 transition-colors duration-200;
+  @apply hover:bg-orange-50 transition-colors duration-200;
 }
 
 /* Button gradients */
 .button-gradient {
-  @apply bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 
+  @apply bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 
          text-white transition-all duration-300;
 }
 
 /* Sidebar styling */
 .sidebar-gradient {
-  @apply bg-gradient-to-b from-background to-white border-r border-gray-200;
+  @apply bg-gradient-to-b from-[#F1F0FB] to-white border-r border-gray-200;
 }
 
 /* Header/navbar styling */
