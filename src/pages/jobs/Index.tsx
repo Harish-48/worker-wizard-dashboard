@@ -12,22 +12,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Job {
   id: string;
   title: string;
-  supervisorId: string;
-  supervisorName: string;
-  numWorkers: number;
-  startDate: string;
-  dueDate: string;
+  supervisor_id: string;
+  supervisor_name: string;
+  num_workers: number;
+  start_date: string;
+  due_date: string;
   status: "Pending" | "In Progress" | "Completed";
 }
 
 const JobCard = ({ job, onStatusChange }: { job: Job; onStatusChange: (id: string, status: Job['status'], title: string) => void }) => {
   const calculateRemainingDays = () => {
     const today = new Date();
-    const dueDate = new Date(job.dueDate);
+    const dueDate = new Date(job.due_date);
     const diffTime = dueDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? `${diffDays} days remaining` : 'Past due';
@@ -42,7 +43,7 @@ const JobCard = ({ job, onStatusChange }: { job: Job; onStatusChange: (id: strin
           </div>
           <div>
             <h3 className="font-medium">{job.title}</h3>
-            <p className="text-sm text-muted-foreground">Supervisor: {job.supervisorName}</p>
+            <p className="text-sm text-muted-foreground">Supervisor: {job.supervisor_name}</p>
           </div>
         </div>
         <Select 
@@ -62,15 +63,15 @@ const JobCard = ({ job, onStatusChange }: { job: Job; onStatusChange: (id: strin
       <div className="flex flex-col gap-2 text-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Users className="w-4 h-4" />
-          <span>{job.numWorkers} workers assigned</span>
+          <span>{job.num_workers} workers assigned</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="w-4 h-4" />
-          <span>Start: {job.startDate}</span>
+          <span>Start: {job.start_date}</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="w-4 h-4" />
-          <span>Due: {job.dueDate}</span>
+          <span>Due: {job.due_date}</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">
           <Clock className="w-4 h-4" />
@@ -85,46 +86,66 @@ const JobsPage = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
-    const savedJobs = localStorage.getItem("jobs");
-    if (savedJobs) {
-      setJobs(JSON.parse(savedJobs));
-    }
+    fetchJobs();
   }, []);
 
-  const handleStatusChange = (jobId: string, newStatus: Job['status'], jobTitle: string) => {
-    const updatedJobs = jobs.map(job => 
-      job.id === jobId ? { ...job, status: newStatus } : job
-    );
-    setJobs(updatedJobs);
-    localStorage.setItem("jobs", JSON.stringify(updatedJobs));
-
-    // Update allocation and worker status if job is completed
-    if (newStatus === "Completed") {
-      // Update allocations
-      const allocations = JSON.parse(localStorage.getItem("allocations") || "[]");
-      const updatedAllocations = allocations.map((allocation: any) => 
-        allocation.companyName === jobTitle ? { ...allocation, status: "Completed" } : allocation
-      );
-      localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
-
-      // Find the completed allocation
-      const completedAllocation = allocations.find((a: any) => a.companyName === jobTitle);
+  const fetchJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*');
       
-      if (completedAllocation) {
-        // Update workers' status
-        const workers = JSON.parse(localStorage.getItem("workers") || "[]");
-        const updatedWorkers = workers.map((worker: any) => {
-          if (completedAllocation.workerIds.includes(worker.id) || 
-              worker.id === completedAllocation.supervisorId) {
-            return { ...worker, status: "Not Allocated" };
-          }
-          return worker;
-        });
-        localStorage.setItem("workers", JSON.stringify(updatedWorkers));
-      }
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      toast.error('Failed to fetch jobs');
     }
+  };
 
-    toast.success("Job status updated successfully");
+  const handleStatusChange = async (jobId: string, newStatus: Job['status'], jobTitle: string) => {
+    try {
+      const { error: jobError } = await supabase
+        .from('jobs')
+        .update({ status: newStatus })
+        .eq('id', jobId);
+
+      if (jobError) throw jobError;
+
+      if (newStatus === "Completed") {
+        const { error: allocationError } = await supabase
+          .from('allocations')
+          .update({ status: "Completed" })
+          .eq('company_name', jobTitle);
+
+        if (allocationError) throw allocationError;
+
+        const { data: allocation } = await supabase
+          .from('allocations')
+          .select('worker_ids, supervisor_id')
+          .eq('company_name', jobTitle)
+          .single();
+
+        if (allocation) {
+          const workerIds = [...allocation.worker_ids, allocation.supervisor_id];
+          const { error: workersError } = await supabase
+            .from('workers')
+            .update({ status: "Not Allocated" })
+            .in('id', workerIds);
+
+          if (workersError) throw workersError;
+        }
+      }
+
+      setJobs(jobs.map(job => 
+        job.id === jobId ? { ...job, status: newStatus } : job
+      ));
+      
+      toast.success("Job status updated successfully");
+    } catch (error) {
+      console.error('Error updating job status:', error);
+      toast.error('Failed to update job status');
+    }
   };
 
   return (

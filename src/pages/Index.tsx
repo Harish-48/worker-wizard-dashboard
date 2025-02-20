@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, FileText, Users, Timer } from "lucide-react";
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const DashboardPage = () => {
   const [metrics, setMetrics] = useState({
@@ -14,18 +15,28 @@ const DashboardPage = () => {
   });
 
   useEffect(() => {
-    // Load data from localStorage
-    const jobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const workers = JSON.parse(localStorage.getItem("workers") || "[]");
-    const allocations = JSON.parse(localStorage.getItem("allocations") || "[]");
-
-    setMetrics({
-      totalJobs: jobs.length,
-      activeWorkers: workers.filter((w: any) => w.status === "Work Allocated").length,
-      completedJobs: jobs.filter((j: any) => j.status === "Completed").length,
-      pendingAllocations: allocations.length
-    });
+    fetchMetrics();
   }, []);
+
+  const fetchMetrics = async () => {
+    try {
+      // Fetch jobs
+      const { data: jobs } = await supabase.from('jobs').select('*');
+      // Fetch workers
+      const { data: workers } = await supabase.from('workers').select('*');
+      // Fetch allocations
+      const { data: allocations } = await supabase.from('allocations').select('*');
+
+      setMetrics({
+        totalJobs: jobs?.length || 0,
+        activeWorkers: workers?.filter((w: any) => w.status === "Work Allocated").length || 0,
+        completedJobs: jobs?.filter((j: any) => j.status === "Completed").length || 0,
+        pendingAllocations: allocations?.length || 0
+      });
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+    }
+  };
 
   return (
     <Layout>

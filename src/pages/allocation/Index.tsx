@@ -29,16 +29,17 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Allocation {
   id: string;
-  workerIds: string[];
-  workerNames: string[];
-  supervisorId: string;
-  supervisorName: string;
-  companyName: string;
-  startDate: string;
-  endDate: string;
+  worker_ids: string[];
+  worker_names: string[];
+  supervisor_id: string;
+  supervisor_name: string;
+  company_name: string;
+  start_date: string;
+  end_date: string;
   status: "Active" | "Completed";
 }
 
@@ -48,32 +49,56 @@ const AllocationPage = () => {
   const [workers, setWorkers] = useState<any[]>([]);
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [newAllocation, setNewAllocation] = useState({
-    supervisorId: "",
-    companyName: "",
-    startDate: "",
-    endDate: "",
+    supervisor_id: "",
+    company_name: "",
+    start_date: "",
+    end_date: "",
   });
 
   useEffect(() => {
-    // Load saved data from localStorage
-    const savedAllocations = localStorage.getItem("allocations");
-    const savedWorkers = localStorage.getItem("workers");
-
-    if (savedAllocations) setAllocations(JSON.parse(savedAllocations));
-    if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
+    fetchAllocations();
+    fetchWorkers();
   }, []);
+
+  const fetchAllocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('allocations')
+        .select('*');
+      
+      if (error) throw error;
+      setAllocations(data || []);
+    } catch (error) {
+      console.error('Error fetching allocations:', error);
+      toast.error('Failed to fetch allocations');
+    }
+  };
+
+  const fetchWorkers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('*');
+      
+      if (error) throw error;
+      setWorkers(data || []);
+    } catch (error) {
+      console.error('Error fetching workers:', error);
+      toast.error('Failed to fetch workers');
+    }
+  };
 
   const getAvailableSupervisors = () => {
     return workers.filter(worker => 
       worker.role.toLowerCase().includes('supervisor') &&
-      !allocations.some(a => a.supervisorId === worker.id && a.status === "Active")
+      worker.status === "Not Allocated"
     );
   };
 
   const getAvailableWorkers = () => {
     return workers.filter(worker => 
       !worker.role.toLowerCase().includes('supervisor') &&
-      !allocations.some(a => a.workerIds.includes(worker.id) && a.status === "Active")
+      worker.status === "Not Allocated"
     );
   };
 
@@ -85,83 +110,100 @@ const AllocationPage = () => {
     );
   };
 
-  const handleAddAllocation = () => {
-    if (!newAllocation.supervisorId || !selectedWorkers.length || !newAllocation.companyName || !newAllocation.startDate || !newAllocation.endDate) {
+  const handleAddAllocation = async () => {
+    if (!newAllocation.supervisor_id || !selectedWorkers.length || !newAllocation.company_name || !newAllocation.start_date || !newAllocation.end_date) {
       toast.error("Please fill in all fields");
       return;
     }
 
-    const supervisor = workers.find(w => w.id === newAllocation.supervisorId);
-    const selectedWorkerDetails = workers.filter(w => selectedWorkers.includes(w.id));
+    try {
+      const supervisor = workers.find(w => w.id === newAllocation.supervisor_id);
+      const selectedWorkerDetails = workers.filter(w => selectedWorkers.includes(w.id));
 
-    const allocation: Allocation = {
-      id: Date.now().toString(),
-      workerIds: selectedWorkers,
-      workerNames: selectedWorkerDetails.map(w => w.name),
-      supervisorId: newAllocation.supervisorId,
-      supervisorName: supervisor?.name || "",
-      companyName: newAllocation.companyName,
-      startDate: newAllocation.startDate,
-      endDate: newAllocation.endDate,
-      status: "Active",
-    };
+      const { data: allocationData, error: allocationError } = await supabase
+        .from('allocations')
+        .insert([{
+          worker_ids: selectedWorkers,
+          worker_names: selectedWorkerDetails.map(w => w.name),
+          supervisor_id: newAllocation.supervisor_id,
+          supervisor_name: supervisor?.name || "",
+          company_name: newAllocation.company_name,
+          start_date: newAllocation.start_date,
+          end_date: newAllocation.end_date,
+          status: "Active"
+        }])
+        .select()
+        .single();
 
-    const updatedAllocations = [...allocations, allocation];
-    setAllocations(updatedAllocations);
-    localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
-    
-    // Update workers' status
-    const updatedWorkers = workers.map(w => ({
-      ...w,
-      status: selectedWorkers.includes(w.id) || w.id === newAllocation.supervisorId 
-        ? "Work Allocated" 
-        : "Not Allocated"
-    }));
-    localStorage.setItem("workers", JSON.stringify(updatedWorkers));
-    
-    // Create job entry
-    const jobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const newJob = {
-      id: Date.now().toString(),
-      title: newAllocation.companyName,
-      supervisorId: newAllocation.supervisorId,
-      supervisorName: supervisor?.name,
-      numWorkers: selectedWorkers.length,
-      startDate: newAllocation.startDate,
-      dueDate: newAllocation.endDate,
-      status: "Pending",
-    };
-    localStorage.setItem("jobs", JSON.stringify([...jobs, newJob]));
-    
-    setNewAllocation({
-      supervisorId: "",
-      companyName: "",
-      startDate: "",
-      endDate: "",
-    });
-    setSelectedWorkers([]);
-    setIsAddingAllocation(false);
-    toast.success("Allocation added successfully");
+      if (allocationError) throw allocationError;
+
+      // Update workers' status
+      const { error: workersError } = await supabase
+        .from('workers')
+        .update({ status: "Work Allocated" })
+        .in('id', [...selectedWorkers, newAllocation.supervisor_id]);
+
+      if (workersError) throw workersError;
+
+      // Create job entry
+      const { error: jobError } = await supabase
+        .from('jobs')
+        .insert([{
+          title: newAllocation.company_name,
+          supervisor_id: newAllocation.supervisor_id,
+          supervisor_name: supervisor?.name,
+          num_workers: selectedWorkers.length,
+          start_date: newAllocation.start_date,
+          due_date: newAllocation.end_date,
+          status: "Pending"
+        }]);
+
+      if (jobError) throw jobError;
+
+      setAllocations([...allocations, allocationData]);
+      setNewAllocation({
+        supervisor_id: "",
+        company_name: "",
+        start_date: "",
+        end_date: "",
+      });
+      setSelectedWorkers([]);
+      setIsAddingAllocation(false);
+      await fetchWorkers(); // Refresh workers list
+      toast.success("Allocation added successfully");
+    } catch (error) {
+      console.error('Error adding allocation:', error);
+      toast.error('Failed to add allocation');
+    }
   };
 
-  const handleRemoveAllocation = (id: string) => {
-    const allocation = allocations.find(a => a.id === id);
-    if (!allocation) return;
+  const handleRemoveAllocation = async (id: string) => {
+    try {
+      const allocation = allocations.find(a => a.id === id);
+      if (!allocation) return;
 
-    const updatedAllocations = allocations.filter(a => a.id !== id);
-    setAllocations(updatedAllocations);
-    localStorage.setItem("allocations", JSON.stringify(updatedAllocations));
+      const { error: allocationError } = await supabase
+        .from('allocations')
+        .delete()
+        .eq('id', id);
 
-    // Update workers' status
-    const updatedWorkers = workers.map(w => ({
-      ...w,
-      status: allocation.workerIds.includes(w.id) || w.id === allocation.supervisorId
-        ? "Not Allocated"
-        : w.status
-    }));
-    localStorage.setItem("workers", JSON.stringify(updatedWorkers));
+      if (allocationError) throw allocationError;
 
-    toast.success("Allocation removed successfully");
+      const workerIds = [...allocation.worker_ids, allocation.supervisor_id];
+      const { error: workersError } = await supabase
+        .from('workers')
+        .update({ status: "Not Allocated" })
+        .in('id', workerIds);
+
+      if (workersError) throw workersError;
+
+      setAllocations(allocations.filter(a => a.id !== id));
+      await fetchWorkers(); // Refresh workers list
+      toast.success("Allocation removed successfully");
+    } catch (error) {
+      console.error('Error removing allocation:', error);
+      toast.error('Failed to remove allocation');
+    }
   };
 
   return (
@@ -194,12 +236,12 @@ const AllocationPage = () => {
               {allocations.map((allocation) => (
                 <TableRow key={allocation.id}>
                   <TableCell className="font-medium">
-                    {allocation.supervisorName}
+                    {allocation.supervisor_name}
                   </TableCell>
-                  <TableCell>{allocation.workerNames.join(", ")}</TableCell>
-                  <TableCell>{allocation.companyName}</TableCell>
-                  <TableCell>{allocation.startDate}</TableCell>
-                  <TableCell>{allocation.endDate}</TableCell>
+                  <TableCell>{allocation.worker_names.join(", ")}</TableCell>
+                  <TableCell>{allocation.company_name}</TableCell>
+                  <TableCell>{allocation.start_date}</TableCell>
+                  <TableCell>{allocation.end_date}</TableCell>
                   <TableCell>
                     <Badge variant="default">
                       {allocation.status}
@@ -229,8 +271,8 @@ const AllocationPage = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Supervisor</label>
                 <Select
-                  value={newAllocation.supervisorId}
-                  onValueChange={(value) => setNewAllocation({ ...newAllocation, supervisorId: value })}
+                  value={newAllocation.supervisor_id}
+                  onValueChange={(value) => setNewAllocation({ ...newAllocation, supervisor_id: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Supervisor" />
@@ -269,8 +311,8 @@ const AllocationPage = () => {
                 <label className="text-sm font-medium">Company Name</label>
                 <Input
                   placeholder="Enter company name"
-                  value={newAllocation.companyName}
-                  onChange={(e) => setNewAllocation({ ...newAllocation, companyName: e.target.value })}
+                  value={newAllocation.company_name}
+                  onChange={(e) => setNewAllocation({ ...newAllocation, company_name: e.target.value })}
                 />
               </div>
 
@@ -279,8 +321,8 @@ const AllocationPage = () => {
                 <input
                   type="date"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  value={newAllocation.startDate}
-                  onChange={(e) => setNewAllocation({ ...newAllocation, startDate: e.target.value })}
+                  value={newAllocation.start_date}
+                  onChange={(e) => setNewAllocation({ ...newAllocation, start_date: e.target.value })}
                 />
               </div>
 
@@ -289,8 +331,8 @@ const AllocationPage = () => {
                 <input
                   type="date"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  value={newAllocation.endDate}
-                  onChange={(e) => setNewAllocation({ ...newAllocation, endDate: e.target.value })}
+                  value={newAllocation.end_date}
+                  onChange={(e) => setNewAllocation({ ...newAllocation, end_date: e.target.value })}
                 />
               </div>
             </div>

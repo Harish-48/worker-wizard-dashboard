@@ -1,9 +1,10 @@
+
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserCheck, Mail, Phone, Star, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Worker {
   id: string;
@@ -78,39 +80,68 @@ const WorkersPage = () => {
     phone: "",
   });
 
-  const handleAddWorker = () => {
+  useEffect(() => {
+    fetchWorkers();
+  }, []);
+
+  const fetchWorkers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('*');
+      
+      if (error) throw error;
+      setWorkers(data || []);
+    } catch (error) {
+      console.error('Error fetching workers:', error);
+      toast.error('Failed to fetch workers');
+    }
+  };
+
+  const handleAddWorker = async () => {
     if (!newWorker.name || !newWorker.role || !newWorker.email || !newWorker.phone) {
       toast.error("Please fill in all fields");
       return;
     }
 
-    const worker: Worker = {
-      id: Date.now().toString(),
-      ...newWorker,
-      status: "Not Allocated",
-    };
+    try {
+      const { data, error } = await supabase
+        .from('workers')
+        .insert([{
+          ...newWorker,
+          status: "Not Allocated"
+        }])
+        .select()
+        .single();
 
-    setWorkers([...workers, worker]);
-    localStorage.setItem("workers", JSON.stringify([...workers, worker]));
-    
-    setNewWorker({ name: "", role: "", email: "", phone: "" });
-    setIsAddingWorker(false);
-    toast.success("Worker added successfully");
-  };
+      if (error) throw error;
 
-  const handleRemoveWorker = (id: string) => {
-    const updatedWorkers = workers.filter(worker => worker.id !== id);
-    setWorkers(updatedWorkers);
-    localStorage.setItem("workers", JSON.stringify(updatedWorkers));
-    toast.success("Worker removed successfully");
-  };
-
-  useState(() => {
-    const savedWorkers = localStorage.getItem("workers");
-    if (savedWorkers) {
-      setWorkers(JSON.parse(savedWorkers));
+      setWorkers([...workers, data]);
+      setNewWorker({ name: "", role: "", email: "", phone: "" });
+      setIsAddingWorker(false);
+      toast.success("Worker added successfully");
+    } catch (error) {
+      console.error('Error adding worker:', error);
+      toast.error('Failed to add worker');
     }
-  });
+  };
+
+  const handleRemoveWorker = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('workers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setWorkers(workers.filter(worker => worker.id !== id));
+      toast.success("Worker removed successfully");
+    } catch (error) {
+      console.error('Error removing worker:', error);
+      toast.error('Failed to remove worker');
+    }
+  };
 
   return (
     <Layout>

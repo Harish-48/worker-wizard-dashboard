@@ -9,7 +9,127 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      allocations: {
+        Row: {
+          company_name: string
+          created_at: string | null
+          end_date: string
+          id: string
+          start_date: string
+          status: string
+          supervisor_id: string | null
+          supervisor_name: string
+          worker_ids: string[]
+          worker_names: string[]
+        }
+        Insert: {
+          company_name: string
+          created_at?: string | null
+          end_date: string
+          id?: string
+          start_date: string
+          status: string
+          supervisor_id?: string | null
+          supervisor_name: string
+          worker_ids: string[]
+          worker_names: string[]
+        }
+        Update: {
+          company_name?: string
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          start_date?: string
+          status?: string
+          supervisor_id?: string | null
+          supervisor_name?: string
+          worker_ids?: string[]
+          worker_names?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allocations_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          created_at: string | null
+          due_date: string
+          id: string
+          num_workers: number
+          start_date: string
+          status: string
+          supervisor_id: string | null
+          supervisor_name: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          due_date: string
+          id?: string
+          num_workers: number
+          start_date: string
+          status: string
+          supervisor_id?: string | null
+          supervisor_name: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          num_workers?: number
+          start_date?: string
+          status?: string
+          supervisor_id?: string | null
+          supervisor_name?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workers: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          phone: string
+          role: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          phone: string
+          role: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          role?: string
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
