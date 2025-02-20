@@ -51,58 +51,63 @@ const ReportsPage = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [filteredData, setFilteredData] = useState<AllocationReport[]>([]);
-
-  useEffect(() => {
-    if (startDate && endDate) {
-      updateReportData();
-    }
-  }, [startDate, endDate]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const updateReportData = async () => {
+    if (!startDate || !endDate) {
+      toast.error("Please select both start and end dates");
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      // Fetch allocations within the date range
-      const { data: allocations, error: allocationsError } = await supabase
-        .from('allocations')
-        .select('*')
-        .gte('start_date', startDate)
-        .lte('end_date', endDate);
+      // Fetch all relevant data from Supabase
+      const [allocationsResponse, jobsResponse, workersResponse] = await Promise.all([
+        supabase
+          .from('allocations')
+          .select('*')
+          .gte('start_date', startDate)
+          .lte('end_date', endDate),
+        supabase
+          .from('jobs')
+          .select('*'),
+        supabase
+          .from('workers')
+          .select('*')
+      ]);
 
-      if (allocationsError) throw allocationsError;
+      if (allocationsResponse.error) throw allocationsResponse.error;
+      if (jobsResponse.error) throw jobsResponse.error;
+      if (workersResponse.error) throw workersResponse.error;
 
-      // Fetch jobs data
-      const { data: jobs, error: jobsError } = await supabase
-        .from('jobs')
-        .select('*');
+      const allocations = allocationsResponse.data || [];
+      const jobs = jobsResponse.data || [];
+      const workers = workersResponse.data || [];
 
-      if (jobsError) throw jobsError;
-
-      // Fetch workers data
-      const { data: workers, error: workersError } = await supabase
-        .from('workers')
-        .select('*');
-
-      if (workersError) throw workersError;
-
-      // Set metrics
+      // Update metrics
       setMetrics({
-        totalJobs: jobs?.length || 0,
-        activeWorkers: workers?.filter(w => w.status === "Work Allocated").length || 0,
-        avgCompletion: calculateAverageCompletion(jobs || []),
-        completedThisMonth: allocations?.length || 0
+        totalJobs: jobs.length,
+        activeWorkers: workers.filter(w => w.status === "Work Allocated").length,
+        avgCompletion: calculateAverageCompletion(jobs),
+        completedThisMonth: allocations.length
       });
 
-      // Set filtered data for the table
-      setFilteredData(allocations?.map(allocation => ({
+      // Update filtered data
+      setFilteredData(allocations.map(allocation => ({
         company_name: allocation.company_name,
         supervisor_name: allocation.supervisor_name,
         worker_names: allocation.worker_names,
         start_date: allocation.start_date,
         end_date: allocation.end_date,
         status: allocation.status
-      })) || []);
+      })));
+
+      toast.success("Report data updated successfully");
     } catch (error) {
       console.error('Error fetching report data:', error);
       toast.error('Failed to fetch report data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -172,7 +177,16 @@ const ReportsPage = () => {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <Button onClick={handleDownload} disabled={!startDate || !endDate}>
+            <Button 
+              onClick={updateReportData} 
+              disabled={!startDate || !endDate || isLoading}
+            >
+              {isLoading ? "Loading..." : "Generate Report"}
+            </Button>
+            <Button 
+              onClick={handleDownload} 
+              disabled={!startDate || !endDate || filteredData.length === 0}
+            >
               <Download className="w-4 h-4 mr-2" />
               Download Report
             </Button>
@@ -208,32 +222,40 @@ const ReportsPage = () => {
 
         <Card className="p-6">
           <h2 className="text-lg font-medium mb-6">Work Details</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-4">Company Name</th>
-                  <th className="text-left py-2 px-4">Supervisor</th>
-                  <th className="text-left py-2 px-4">Workers</th>
-                  <th className="text-left py-2 px-4">Start Date</th>
-                  <th className="text-left py-2 px-4">End Date</th>
-                  <th className="text-left py-2 px-4">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((allocation, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="py-2 px-4">{allocation.company_name}</td>
-                    <td className="py-2 px-4">{allocation.supervisor_name}</td>
-                    <td className="py-2 px-4">{allocation.worker_names.join(', ')}</td>
-                    <td className="py-2 px-4">{allocation.start_date}</td>
-                    <td className="py-2 px-4">{allocation.end_date}</td>
-                    <td className="py-2 px-4">{allocation.status}</td>
+          {filteredData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {startDate && endDate 
+                ? "No data found for the selected period" 
+                : "Select a date range to view report data"}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-4">Company Name</th>
+                    <th className="text-left py-2 px-4">Supervisor</th>
+                    <th className="text-left py-2 px-4">Workers</th>
+                    <th className="text-left py-2 px-4">Start Date</th>
+                    <th className="text-left py-2 px-4">End Date</th>
+                    <th className="text-left py-2 px-4">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredData.map((allocation, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-2 px-4">{allocation.company_name}</td>
+                      <td className="py-2 px-4">{allocation.supervisor_name}</td>
+                      <td className="py-2 px-4">{allocation.worker_names.join(', ')}</td>
+                      <td className="py-2 px-4">{allocation.start_date}</td>
+                      <td className="py-2 px-4">{allocation.end_date}</td>
+                      <td className="py-2 px-4">{allocation.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
     </Layout>

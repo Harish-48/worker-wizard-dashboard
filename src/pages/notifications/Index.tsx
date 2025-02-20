@@ -5,22 +5,25 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
-  company_name: string;
+  title: string;
   due_date: string;
   daysRemaining: number;
+  supervisor_name: string;
 }
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchUpcomingDeadlines();
+    fetchNotifications();
   }, []);
 
-  const fetchUpcomingDeadlines = async () => {
+  const fetchNotifications = async () => {
     try {
       const today = new Date();
       const { data: jobs, error } = await supabase
@@ -38,16 +41,21 @@ const NotificationsPage = () => {
           
           return {
             id: job.id,
-            company_name: job.title,
+            title: job.title,
             due_date: job.due_date,
-            daysRemaining
+            daysRemaining,
+            supervisor_name: job.supervisor_name
           };
         })
-        .filter(job => job.daysRemaining <= 1 && job.daysRemaining >= 0);
+        .filter(job => job.daysRemaining <= 1 && job.daysRemaining >= 0)
+        .sort((a, b) => a.daysRemaining - b.daysRemaining);
 
       setNotifications(upcomingDeadlines);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      toast.error('Failed to fetch notifications');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -57,12 +65,18 @@ const NotificationsPage = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-semibold">Notifications</h1>
-            <p className="text-muted-foreground">Upcoming deadline alerts</p>
+            <p className="text-muted-foreground">View upcoming deadlines</p>
           </div>
         </div>
 
         <div className="grid gap-4">
-          {notifications.length === 0 ? (
+          {isLoading ? (
+            <Card className="p-6">
+              <div className="flex items-center justify-center text-muted-foreground">
+                Loading notifications...
+              </div>
+            </Card>
+          ) : notifications.length === 0 ? (
             <Card className="p-6">
               <div className="flex items-center justify-center text-muted-foreground">
                 <Bell className="w-4 h-4 mr-2" />
@@ -78,17 +92,21 @@ const NotificationsPage = () => {
                       <Bell className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{notification.company_name}</h3>
+                      <h3 className="font-medium">{notification.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Supervisor: {notification.supervisor_name}
+                      </p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         <Calendar className="w-4 h-4" />
-                        <span>Due: {notification.due_date}</span>
+                        <span>Due: {new Date(notification.due_date).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
-                  <Badge variant="destructive">
-                    {notification.daysRemaining === 0
-                      ? "Due today"
-                      : "Due tomorrow"}
+                  <Badge 
+                    variant="destructive"
+                    className="ml-4"
+                  >
+                    {notification.daysRemaining === 0 ? "Due today" : "Due tomorrow"}
                   </Badge>
                 </div>
               </Card>

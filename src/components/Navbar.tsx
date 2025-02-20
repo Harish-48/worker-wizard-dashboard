@@ -11,6 +11,9 @@ const Navbar = () => {
 
   useEffect(() => {
     checkNotifications();
+    // Set up a periodic check every minute
+    const interval = setInterval(checkNotifications, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const checkNotifications = async () => {
@@ -40,7 +43,12 @@ const Navbar = () => {
     <nav className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-full items-center px-6 justify-between">
         <div className="flex items-center gap-6">
-          <h1 className="text-lg font-semibold">Worker Wizard</h1>
+          <h1 
+            className="text-lg font-semibold cursor-pointer" 
+            onClick={() => navigate('/')}
+          >
+            Worker Wizard
+          </h1>
         </div>
         <div className="flex items-center gap-4">
           <Button 
@@ -51,7 +59,7 @@ const Navbar = () => {
           >
             <Bell className="h-5 w-5" />
             {hasNotifications && (
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
             )}
           </Button>
           <Button variant="ghost" size="icon">
