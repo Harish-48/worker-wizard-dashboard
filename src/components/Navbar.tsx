@@ -1,8 +1,41 @@
 
 import { User, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navbar = () => {
+  const navigate = useNavigate();
+  const [hasNotifications, setHasNotifications] = useState(false);
+
+  useEffect(() => {
+    checkNotifications();
+  }, []);
+
+  const checkNotifications = async () => {
+    try {
+      const today = new Date();
+      const { data: jobs, error } = await supabase
+        .from('jobs')
+        .select('due_date')
+        .eq('status', 'In Progress');
+
+      if (error) throw error;
+
+      const hasUpcomingDeadlines = (jobs || []).some(job => {
+        const dueDate = new Date(job.due_date);
+        const timeDiff = dueDate.getTime() - today.getTime();
+        const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        return daysRemaining <= 1 && daysRemaining >= 0;
+      });
+
+      setHasNotifications(hasUpcomingDeadlines);
+    } catch (error) {
+      console.error('Error checking notifications:', error);
+    }
+  };
+
   return (
     <nav className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-full items-center px-6 justify-between">
@@ -10,8 +43,16 @@ const Navbar = () => {
           <h1 className="text-lg font-semibold">Worker Wizard</h1>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="relative"
+            onClick={() => navigate('/notifications')}
+          >
             <Bell className="h-5 w-5" />
+            {hasNotifications && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
+            )}
           </Button>
           <Button variant="ghost" size="icon">
             <User className="h-5 w-5" />

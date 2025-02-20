@@ -3,17 +3,18 @@ import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, FileText, Users, Timer, Download } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface AllocationReport {
+  company_name: string;
+  supervisor_name: string;
+  worker_names: string[];
+  start_date: string;
+  end_date: string;
+  status: string;
+}
 
 const ReportCard = ({
   title,
@@ -49,33 +50,60 @@ const ReportsPage = () => {
   });
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [filteredData, setFilteredData] = useState<any[]>([]);
+  const [filteredData, setFilteredData] = useState<AllocationReport[]>([]);
 
   useEffect(() => {
-    updateMetrics();
+    if (startDate && endDate) {
+      updateReportData();
+    }
   }, [startDate, endDate]);
 
-  const updateMetrics = () => {
-    const jobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const workers = JSON.parse(localStorage.getItem("workers") || "[]");
-    const allocations = JSON.parse(localStorage.getItem("allocations") || "[]");
+  const updateReportData = async () => {
+    try {
+      // Fetch allocations within the date range
+      const { data: allocations, error: allocationsError } = await supabase
+        .from('allocations')
+        .select('*')
+        .gte('start_date', startDate)
+        .lte('end_date', endDate);
 
-    let filteredAllocations = allocations;
-    if (startDate && endDate) {
-      filteredAllocations = allocations.filter((allocation: any) => {
-        const allocationDate = new Date(allocation.startDate);
-        return allocationDate >= new Date(startDate) && allocationDate <= new Date(endDate);
+      if (allocationsError) throw allocationsError;
+
+      // Fetch jobs data
+      const { data: jobs, error: jobsError } = await supabase
+        .from('jobs')
+        .select('*');
+
+      if (jobsError) throw jobsError;
+
+      // Fetch workers data
+      const { data: workers, error: workersError } = await supabase
+        .from('workers')
+        .select('*');
+
+      if (workersError) throw workersError;
+
+      // Set metrics
+      setMetrics({
+        totalJobs: jobs?.length || 0,
+        activeWorkers: workers?.filter(w => w.status === "Work Allocated").length || 0,
+        avgCompletion: calculateAverageCompletion(jobs || []),
+        completedThisMonth: allocations?.length || 0
       });
+
+      // Set filtered data for the table
+      setFilteredData(allocations?.map(allocation => ({
+        company_name: allocation.company_name,
+        supervisor_name: allocation.supervisor_name,
+        worker_names: allocation.worker_names,
+        start_date: allocation.start_date,
+        end_date: allocation.end_date,
+        status: allocation.status
+      })) || []);
+    } catch (error) {
+      console.error('Error fetching report data:', error);
+      toast.error('Failed to fetch report data');
     }
-
-    setFilteredData(filteredAllocations);
-
-    setMetrics({
-      totalJobs: jobs.length,
-      activeWorkers: workers.filter((w: any) => w.status === "Work Allocated").length,
-      avgCompletion: calculateAverageCompletion(jobs),
-      completedThisMonth: filteredAllocations.length
-    });
   };
 
   const calculateAverageCompletion = (jobs: any[]) => {
@@ -83,8 +111,8 @@ const ReportsPage = () => {
     if (completedJobs.length === 0) return "0 days";
     
     const totalDays = completedJobs.reduce((acc, job) => {
-      const start = new Date(job.startDate);
-      const end = new Date(job.dueDate);
+      const start = new Date(job.start_date);
+      const end = new Date(job.due_date);
       return acc + Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     }, 0);
     
@@ -97,19 +125,16 @@ const ReportsPage = () => {
       return;
     }
 
-    const reportData = filteredData.map((allocation: any) => ({
-      'Company Name': allocation.companyName,
-      'Supervisor': allocation.supervisorName,
-      'Workers': allocation.workerNames.join(', '),
-      'Start Date': allocation.startDate,
-      'End Date': allocation.endDate,
-      'Status': allocation.status
-    }));
-
-    const headers = ['Company Name', 'Supervisor', 'Workers', 'Start Date', 'End Date', 'Status'];
     const csvContent = [
-      headers.join(','),
-      ...reportData.map(row => headers.map(header => `"${row[header as keyof typeof row]}"`).join(','))
+      ['Company Name', 'Supervisor', 'Workers', 'Start Date', 'End Date', 'Status'].join(','),
+      ...filteredData.map(row => [
+        row.company_name,
+        row.supervisor_name,
+        row.worker_names.join('; '),
+        row.start_date,
+        row.end_date,
+        row.status
+      ].map(cell => `"${cell}"`).join(','))
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -196,13 +221,13 @@ const ReportsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map((allocation: any, index: number) => (
+                {filteredData.map((allocation, index) => (
                   <tr key={index} className="border-b">
-                    <td className="py-2 px-4">{allocation.companyName}</td>
-                    <td className="py-2 px-4">{allocation.supervisorName}</td>
-                    <td className="py-2 px-4">{allocation.workerNames.join(', ')}</td>
-                    <td className="py-2 px-4">{allocation.startDate}</td>
-                    <td className="py-2 px-4">{allocation.endDate}</td>
+                    <td className="py-2 px-4">{allocation.company_name}</td>
+                    <td className="py-2 px-4">{allocation.supervisor_name}</td>
+                    <td className="py-2 px-4">{allocation.worker_names.join(', ')}</td>
+                    <td className="py-2 px-4">{allocation.start_date}</td>
+                    <td className="py-2 px-4">{allocation.end_date}</td>
                     <td className="py-2 px-4">{allocation.status}</td>
                   </tr>
                 ))}
