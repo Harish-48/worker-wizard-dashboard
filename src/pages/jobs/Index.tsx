@@ -96,7 +96,8 @@ const JobsPage = () => {
         .select('*');
       
       if (error) throw error;
-      setJobs(data || []);
+      // Type cast the data to match our Job interface
+      setJobs((data as Job[]) || []);
     } catch (error) {
       console.error('Error fetching jobs:', error);
       toast.error('Failed to fetch jobs');
@@ -115,7 +116,7 @@ const JobsPage = () => {
       if (newStatus === "Completed") {
         const { error: allocationError } = await supabase
           .from('allocations')
-          .update({ status: "Completed" })
+          .update({ status: "Completed" as const })
           .eq('company_name', jobTitle);
 
         if (allocationError) throw allocationError;
@@ -130,7 +131,7 @@ const JobsPage = () => {
           const workerIds = [...allocation.worker_ids, allocation.supervisor_id];
           const { error: workersError } = await supabase
             .from('workers')
-            .update({ status: "Not Allocated" })
+            .update({ status: "Not Allocated" as const })
             .in('id', workerIds);
 
           if (workersError) throw workersError;

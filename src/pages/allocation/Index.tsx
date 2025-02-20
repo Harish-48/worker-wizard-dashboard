@@ -1,4 +1,3 @@
-
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,7 +66,8 @@ const AllocationPage = () => {
         .select('*');
       
       if (error) throw error;
-      setAllocations(data || []);
+      // Type cast the data to match our Allocation interface
+      setAllocations((data as Allocation[]) || []);
     } catch (error) {
       console.error('Error fetching allocations:', error);
       toast.error('Failed to fetch allocations');
@@ -130,7 +130,7 @@ const AllocationPage = () => {
           company_name: newAllocation.company_name,
           start_date: newAllocation.start_date,
           end_date: newAllocation.end_date,
-          status: "Active"
+          status: "Active" as const
         }])
         .select()
         .single();
@@ -140,7 +140,7 @@ const AllocationPage = () => {
       // Update workers' status
       const { error: workersError } = await supabase
         .from('workers')
-        .update({ status: "Work Allocated" })
+        .update({ status: "Work Allocated" as const })
         .in('id', [...selectedWorkers, newAllocation.supervisor_id]);
 
       if (workersError) throw workersError;
@@ -155,12 +155,12 @@ const AllocationPage = () => {
           num_workers: selectedWorkers.length,
           start_date: newAllocation.start_date,
           due_date: newAllocation.end_date,
-          status: "Pending"
+          status: "Pending" as const
         }]);
 
       if (jobError) throw jobError;
 
-      setAllocations([...allocations, allocationData]);
+      setAllocations([...allocations, allocationData as Allocation]);
       setNewAllocation({
         supervisor_id: "",
         company_name: "",

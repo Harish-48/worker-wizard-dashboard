@@ -91,7 +91,8 @@ const WorkersPage = () => {
         .select('*');
       
       if (error) throw error;
-      setWorkers(data || []);
+      // Type cast the data to match our Worker interface
+      setWorkers((data as Worker[]) || []);
     } catch (error) {
       console.error('Error fetching workers:', error);
       toast.error('Failed to fetch workers');
@@ -109,14 +110,14 @@ const WorkersPage = () => {
         .from('workers')
         .insert([{
           ...newWorker,
-          status: "Not Allocated"
+          status: "Not Allocated" as const
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      setWorkers([...workers, data]);
+      setWorkers([...workers, data as Worker]);
       setNewWorker({ name: "", role: "", email: "", phone: "" });
       setIsAddingWorker(false);
       toast.success("Worker added successfully");
