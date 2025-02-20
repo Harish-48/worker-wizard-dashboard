@@ -9,6 +9,7 @@ import WorkersPage from "./pages/workers/Index";
 import JobsPage from "./pages/jobs/Index";
 import AllocationPage from "./pages/allocation/Index";
 import ReportsPage from "./pages/reports/Index";
+import NotificationsPage from "./pages/notifications/Index";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/allocation" element={<AllocationPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
